@@ -1,4 +1,3 @@
-// ragService.js (หรือไฟล์หลักที่ใช้ handleRAGChat)
 import { ChatOpenAI } from '@langchain/openai';
 import { RunnableSequence, RunnableWithMessageHistory } from '@langchain/core/runnables';
 import { PromptTemplate } from '@langchain/core/prompts';
@@ -6,7 +5,6 @@ import { StringOutputParser } from '@langchain/core/output_parsers';
 import { getMongoVectorStore } from './vectorStore.js';
 import { getMemoryForUser } from './memory.js';
 
-// กำหนดจำนวนข้อความล่าสุดที่คุณต้องการส่งให้ LLM
 const LLM_CONTEXT_HISTORY_COUNT = 3; 
 
 const llm = new ChatOpenAI({
@@ -45,16 +43,13 @@ export async function handleRAGChat({ userId, message }) {
         const vectorStore = await getMongoVectorStore();
         const retriever = vectorStore.asRetriever({ k: 5 });
 
-        // Get the memory instance for the user
         const memory = await getMemoryForUser(userId);
         console.log('📚 Initializing memory for userId:', userId);
         console.log('📚 Chat history instance retrieved:', memory.chatHistory);
 
-        // ดึงประวัติทั้งหมดจาก DB ก่อน
         const fullHistory = await memory.chatHistory.getMessages();
         console.log(`📜 Full history retrieved from DB: ${fullHistory.length} messages.`);
         
-        // ตัดประวัติให้เหลือ LLM_CONTEXT_HISTORY_COUNT ข้อความล่าสุด สำหรับส่งให้ LLM
         const slicedHistoryForLLM = fullHistory.slice(-LLM_CONTEXT_HISTORY_COUNT);
         console.log(`📜 Sliced history for LLM context: ${slicedHistoryForLLM.length} messages.`);
 
@@ -69,7 +64,6 @@ export async function handleRAGChat({ userId, message }) {
                     return documents.map(doc => doc.pageContent).join('\n\n---\n\n');
                 },
                 question: (input) => input.question,
-                // ส่ง history ที่ถูก slice แล้วไปให้ Prompt
                 history: (input) => slicedHistoryForLLM, 
             },
             prompt,
@@ -77,11 +71,9 @@ export async function handleRAGChat({ userId, message }) {
             new StringOutputParser(),
         ]);
 
-        // RunnableWithMessageHistory ยังคงใช้ chatHistory ตัวเต็มของ memory.chatHistory
-        // เพื่อให้มันจัดการการบันทึกข้อความ (addMessages, addUserMessage, addAIMessage) ได้ตามปกติ (20 ข้อความ)
         const chainWithMemory = new RunnableWithMessageHistory({
             runnable: ragChain,
-            getMessageHistory: (sessionId) => memory.chatHistory, // ใช้ memory.chatHistory ตัวเต็ม
+            getMessageHistory: (sessionId) => memory.chatHistory, 
             inputMessagesKey: 'question',
             historyMessagesKey: 'history',
         });

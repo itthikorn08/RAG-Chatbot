@@ -1,4 +1,3 @@
-// memory.js
 import { MongoClient } from 'mongodb';
 import { AIMessage, HumanMessage } from '@langchain/core/messages';
 import * as dotenv from 'dotenv';
@@ -6,9 +5,8 @@ import dayjs from 'dayjs';
 dotenv.config();
 
 let mongoClient;
-let _cachedDb; // Cache for the database instance
+let _cachedDb; 
 
-// กำหนดจำนวนข้อความสูงสุดที่ "เก็บในฐานข้อมูล"
 const MAX_MESSAGES_IN_DB = 20;
 
 export class MongoChatMessageHistoryManual {
@@ -18,10 +16,7 @@ export class MongoChatMessageHistoryManual {
   }
 
   /**
-   * Retrieves messages for the current session from MongoDB.
-   * NOTE: This method will retrieve ALL messages up to MAX_MESSAGES_IN_DB.
-   * The actual trimming for LLM context will happen in handleRAGChat.
-   * @returns {Promise<Array<AIMessage|HumanMessage>>} An array of LangChain message objects.
+   * @returns {Promise<Array<AIMessage|HumanMessage>>} 
    */
   async getMessages() {
     try {
@@ -107,10 +102,8 @@ export class MongoChatMessageHistoryManual {
 }
 
 /**
- * Connects to MongoDB and returns the database instance.
- * Ensures a single connection and reuses it across calls.
- * @returns {Promise<Db>} The MongoDB database instance.
- * @throws {Error} If MONGODB_URI or MONGODB_NAME environment variables are missing, or if connection fails.
+ * @returns {Promise<Db>} 
+ * @throws {Error} 
  */
 export async function connectToMongoDB() {
   if (_cachedDb) {
@@ -141,15 +134,13 @@ export async function connectToMongoDB() {
 }
 
 /**
- * Gets the chat memory instance for a specific user.
- * This function will ensure MongoDB connection and return the memory object.
- * @param {string} userId - The ID of the user.
- * @returns {Promise<{chatHistory: MongoChatMessageHistoryManual}>} An object containing the chatHistory instance.
- * @throws {Error} If there's an issue connecting to MongoDB or initializing memory.
+ * @param {string} userId - 
+ * @returns {Promise<{chatHistory: MongoChatMessageHistoryManual}>} 
+ * @throws {Error} 
  */
 export async function getMemoryForUser(userId) {
   try {
-    const db = await connectToMongoDB(); // This call can now throw an error
+    const db = await connectToMongoDB(); 
     const collection = db.collection('chat_histories');
     return {
       chatHistory: new MongoChatMessageHistoryManual({ collection, sessionId: userId }),
@@ -164,16 +155,13 @@ export async function getMemoryForUser(userId) {
 export async function createTtlIndex() {
   const db = await connectToMongoDB();
   const collection = db.collection('chat_histories');
-  const TTL_SECONDS = 5 * 60; // 5 นาที = 300 วินาที
+  const TTL_SECONDS = 5 * 60; 
 
   try {
-    // ตรวจสอบว่ามี Index ชื่อ 'last_activity_timestamp_ttl' อยู่แล้วหรือไม่
     const indexes = await collection.indexes();
     const ttlIndexExists = indexes.some(index => index.name === 'last_activity_timestamp_ttl');
 
     if (!ttlIndexExists) {
-      // สร้าง TTL Index บนฟิลด์ 'last_activity_timestamp'
-      // expireAfterSeconds คือระยะเวลาที่เอกสารจะถูกลบหลังจาก timestamp ในฟิลด์นั้น
       await collection.createIndex(
         { "last_activity_timestamp": 1 },
         { expireAfterSeconds: TTL_SECONDS, name: 'last_activity_timestamp_ttl' }
@@ -184,7 +172,5 @@ export async function createTtlIndex() {
     }
   } catch (error) {
     console.error("Error creating TTL index:", error);
-    // หาก Index มีอยู่แล้วแต่มี expireAfterSeconds ที่ต่างกัน MongoDB จะโยน Error
-    // ซึ่งควรถูกจัดการหรือตรวจสอบล่วงหน้าใน Production
   }
 }

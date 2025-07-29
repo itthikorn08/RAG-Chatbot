@@ -9,16 +9,25 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
   "dependencies": {
     "@langchain/core": "^0.3.66",
     "@langchain/mongodb": "^0.1.0",
     "@langchain/openai": "^0.6.3",
     "@line/bot-sdk": "^10.0.0",
     "dayjs": "^1.11.13",
-    "dotenv": "^16.4.5",
+    "dotenv": "^16.6.1",
     "express": "^5.1.0",
+    "googleapis": "^154.0.0",
     "langchain": "^0.3.30",
-    "mongodb": "^6.17.0"
-  }
+    "mongodb": "^6.18.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/itthikorn08/RAG-Chatbot.git"
+  },
+  "bugs": {
+    "url": "https://github.com/itthikorn08/RAG-Chatbot/issues"
+  },
+  "homepage": "https://github.com/itthikorn08/RAG-Chatbot#readme",
+  "description": ""
 }

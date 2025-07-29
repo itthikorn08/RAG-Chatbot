@@ -19,7 +19,6 @@ export async function getMongoVectorStore() {
   const db = client.db(dbName);
   const collection = db.collection(collectionName);
 
-  // ✅ ใช้ constructor ตรงๆ แทน fromExistingIndex
   const vectorStore = new MongoDBAtlasVectorSearch(
     new OpenAIEmbeddings({
       model: 'text-embedding-3-small',
@@ -27,8 +26,8 @@ export async function getMongoVectorStore() {
     }),
     {
       collection,
-      indexName: 'vector_index',    // ชื่อ vector index ที่ตั้งไว้ใน Atlas
-      textKey: 'text',       // ต้องตรงกับ field ใน collection
+      indexName: 'vector_index',    
+      textKey: 'text',       
     }
   );
 
