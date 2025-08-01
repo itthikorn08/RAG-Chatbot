@@ -10,7 +10,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@google-cloud/vertexai": "^1.10.0",
     "@langchain/core": "^0.3.66",
+    "@langchain/google-genai": "^0.2.16",
     "@langchain/mongodb": "^0.1.0",
     "@langchain/openai": "^0.6.3",
     "@line/bot-sdk": "^10.0.0",

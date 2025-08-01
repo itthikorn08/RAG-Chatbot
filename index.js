@@ -3,6 +3,8 @@ import bodyParser from 'body-parser';
 import { handleRAGChat } from './langchain/agent.js';
 import { replyToLine } from './utils/line.js';
 import { createTtlIndex } from './langchain/memory.js';
+import * as dotenv from 'dotenv';
+dotenv.config();
 
 const app = express();
 app.use(bodyParser.json());
