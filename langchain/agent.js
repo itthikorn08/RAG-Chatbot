@@ -8,7 +8,7 @@ import { getMemoryForUser } from './memory.js';
 const LLM_CONTEXT_HISTORY_COUNT = 3; 
 
 const llm = new ChatOpenAI({
-    model: 'gpt-4o',
+    model: 'gpt-4o-mini',
     temperature: 0.4,
 });
 
