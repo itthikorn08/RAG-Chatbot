@@ -8,17 +8,23 @@ import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import * as dotenv from 'dotenv';
 dotenv.config();
 
-const LLM_CONTEXT_HISTORY_COUNT = 1;
+const LLM_CONTEXT_HISTORY_COUNT = 3;
+
+// const llm = new ChatOpenAI({
+//     model: 'gpt-4o-mini',
+//     temperature: 0.4,
+//     apiKey: process.env.OPENAI_API_KEY,
+// });
 
 const llm = new ChatGoogleGenerativeAI({
-    model: 'gemini-2.5-flash', // แก้เป็น 1.5-flash ตามที่แนะนำก่อนหน้านี้ เพื่อความถูกต้องของชื่อโมเดล
-    temperature: 0.7,
+    model: 'gemini-2.5-flash', 
+    temperature: 0.4,
     apiKey: process.env.GOOGLE_API_KEY,
 });
 
 const prompt = PromptTemplate.fromTemplate(`
 OBJECTIVE:
-You are a helpful assistant that answers questions based only on documents the user is allowed to access.
+You are a helpful assistant that answers questions based only on documents.
 Answer in the same language as the question.
 Keep replies short and clear.
 History: {history}
@@ -49,21 +55,21 @@ export async function handleRAGChat({ userId, message }) {
             {
                 context: async (input) => {
                     const documents = await retriever.invoke(input.question);
-                    // --- จุดที่ 1: ตรวจสอบเอกสารที่ดึงมา ---
+                    
                     console.log('📄 Documents retrieved by retriever:', documents.map(doc => ({
-                        pageContent: doc.pageContent.substring(0, 100) + '...', // แสดงแค่ 100 ตัวอักษรแรก
+                        pageContent: doc.pageContent.substring(0, 100) + '...', 
                         metadata: doc.metadata
                     })));
-                    // --- จบจุดที่ 1 ---
+                    
 
                     if (!Array.isArray(documents) || documents.length === 0) {
-                        console.log('⚠️ No relevant documents found, context will be empty.'); // เพิ่ม log เมื่อไม่พบเอกสาร
+                        console.log('⚠️ No relevant documents found, context will be empty.'); 
                         return "No relevant documents found.";
                     }
                     const contextString = documents.map(doc => doc.pageContent).join('\n\n---\n\n');
-                    // --- จุดที่ 2: ตรวจสอบ Context ที่จะส่งให้ LLM ---
+                    
                     console.log('📝 Prepared Context for LLM (first 500 chars):', contextString.substring(0, 500) + '...');
-                    // --- จบจุดที่ 2 ---
+                    
                     return contextString;
                 },
                 question: (input) => input.question,

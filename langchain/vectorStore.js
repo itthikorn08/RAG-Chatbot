@@ -21,7 +21,7 @@ export async function getMongoVectorStore() {
 
   const vectorStore = new MongoDBAtlasVectorSearch(
     new GoogleGenerativeAIEmbeddings({
-      modelName: 'embedding-001',
+      modelName: 'gemini-embedding-001',
       apiKey: process.env.GOOGLE_API_KEY,
     }),
     {
