@@ -8,7 +8,7 @@ import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import * as dotenv from 'dotenv';
 dotenv.config();
 
-const LLM_CONTEXT_HISTORY_COUNT = 3;
+const LLM_CONTEXT_HISTORY_COUNT = 4;
 
 // const llm = new ChatOpenAI({
 //     model: 'gpt-4o-mini',
@@ -23,18 +23,29 @@ const llm = new ChatGoogleGenerativeAI({
 });
 
 const prompt = PromptTemplate.fromTemplate(`
-OBJECTIVE:
 You are a helpful assistant that answers questions based only on documents.
-Answer in the same language as the question.
-Keep replies short and clear.
-History: {history}
-Context: {context}
-Question: {question}
+
+Do not try to make up or guess the answer.
+
+Respond using the same language as the question.
+Be concise, accurate, and clear.
+
+Context:
+{context}
+
+History:
+{history}
+
+Question:
+{question}
+
+Answer:
+
 `);
 
 export async function handleRAGChat({ userId, message }) {
-    console.log('📩 Incoming message:', message);
-    console.log('👤 From userId:', userId);
+    console.log('Incoming message:', message);
+    console.log('From userId:', userId);
 
     try {
         const vectorStore = await getMongoVectorStore();
@@ -56,19 +67,19 @@ export async function handleRAGChat({ userId, message }) {
                 context: async (input) => {
                     const documents = await retriever.invoke(input.question);
                     
-                    console.log('📄 Documents retrieved by retriever:', documents.map(doc => ({
-                        pageContent: doc.pageContent.substring(0, 100) + '...', 
-                        metadata: doc.metadata
-                    })));
+                    // console.log('📄 Documents retrieved by retriever:', documents.map(doc => ({
+                    //     pageContent: doc.pageContent.substring(0, 100) + '...', 
+                    //     metadata: doc.metadata
+                    // })));
                     
 
                     if (!Array.isArray(documents) || documents.length === 0) {
-                        console.log('⚠️ No relevant documents found, context will be empty.'); 
+                        // console.log('⚠️ No relevant documents found, context will be empty.'); 
                         return "No relevant documents found.";
                     }
                     const contextString = documents.map(doc => doc.pageContent).join('\n\n---\n\n');
                     
-                    console.log('📝 Prepared Context for LLM (first 500 chars):', contextString.substring(0, 500) + '...');
+                    // console.log('📝 Prepared Context for LLM (first 500 chars):', contextString.substring(0, 500) + '...');
                     
                     return contextString;
                 },
@@ -92,7 +103,7 @@ export async function handleRAGChat({ userId, message }) {
             { configurable: { sessionId: userId } }
         );
 
-        console.log('🗣️ Model Response:', response);
+        console.log(' Model Response:', response);
 
         const updatedMessages = await memory.chatHistory.getMessages();
         //console.log('📜 Updated chat history in memory:', updatedMessages.map(msg => ({ type: msg._getType(), content: msg.content })));

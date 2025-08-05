@@ -28,16 +28,28 @@ async function startServer() {
 startServer();
 
 app.post('/webhook/line-bot', async (req, res) => {
-  const event = req.body.events?.[0];
-  const userId = event?.source?.userId;
-  const message = event?.message?.text;
-  const replyToken = event?.replyToken;
+  try {
+    const event = req.body.events?.[0];
+    const userId = event?.source?.userId;
+    const message = event?.message?.text;
+    const replyToken = event?.replyToken;
 
-  const answer = await handleRAGChat({ userId, message });
+    
+    if (!userId || !message || !replyToken) {
+      console.warn('Missing required LINE event data');
+      return res.status(200).send('OK'); 
+    }
 
-  await replyToLine({ replyToken, message: answer });
+    const answer = await handleRAGChat({ userId, message });
 
-  res.status(200).end();
+    await replyToLine({ replyToken, message: answer });
+
+    res.status(200).send('OK');
+  } catch (error) {
+    console.error('Error handling LINE webhook:', error);
+    res.status(200).send('OK');
+  }
 });
+
 
 

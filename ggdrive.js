@@ -28,7 +28,7 @@ async function listFiles() {
 }
 
 async function deleteOldRecords(fileId){
-    const client = new MongoClient(process.env.MONGODB_URO);
+    const client = new MongoClient(process.env.MONGODB_URI);
     await client.connect();
     const db = client.db();
     await db.collection('documents').deleteMany({ file_id: fileId });

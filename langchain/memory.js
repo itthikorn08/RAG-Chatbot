@@ -155,7 +155,7 @@ export async function getMemoryForUser(userId) {
 export async function createTtlIndex() {
   const db = await connectToMongoDB();
   const collection = db.collection('chat_histories');
-  const TTL_SECONDS = 5 * 60; 
+  const TTL_SECONDS = 30 * 60; 
 
   try {
     const indexes = await collection.indexes();
