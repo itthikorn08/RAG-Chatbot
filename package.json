@@ -11,17 +11,23 @@
   "license": "ISC",
   "dependencies": {
     "@google-cloud/vertexai": "^1.10.0",
-    "@langchain/core": "^0.3.66",
+    "@langchain/community": "^0.3.50",
+    "@langchain/core": "^0.3.68",
     "@langchain/google-genai": "^0.2.16",
     "@langchain/mongodb": "^0.1.0",
     "@langchain/openai": "^0.6.3",
+    "@langchain/textsplitters": "^0.1.0",
     "@line/bot-sdk": "^10.0.0",
     "dayjs": "^1.11.13",
     "dotenv": "^16.6.1",
     "express": "^5.1.0",
-    "googleapis": "^154.0.0",
+    "googleapis": "^154.1.0",
     "langchain": "^0.3.30",
-    "mongodb": "^6.18.0"
+    "mammoth": "^1.10.0",
+    "mongodb": "^6.18.0",
+    "node-cron": "^4.2.1",
+    "pdf-parse": "^1.1.1",
+    "xlsx": "^0.18.5"
   },
   "repository": {
     "type": "git",
