@@ -35,9 +35,3 @@ export async function getMongoVectorStore() {
   return vectorStore;
 }
 
-// // ฟังก์ชันสำหรับ generate embedding จากข้อความ
-// export async function generateEmbeddingFromText(text) {
-//   const vectorStore = await getMongoVectorStore();
-//   const embedding = await vectorStore.embeddings.embedQuery(text);
-//   return embedding;
-// }

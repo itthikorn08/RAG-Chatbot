@@ -1,26 +1,34 @@
-import { ChatOpenAI } from '@langchain/openai'; // ยังคงอยู่ หากใช้ LLM ตัวอื่นในส่วนอื่นๆ ของโปรเจกต์
+// langchain/agent.js
 import { RunnableSequence, RunnableWithMessageHistory } from '@langchain/core/runnables';
 import { PromptTemplate } from '@langchain/core/prompts';
 import { StringOutputParser } from '@langchain/core/output_parsers';
-import { getMongoVectorStore } from './vectorStore.js';
-import { getMemoryForUser } from './memory.js';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
-import { performance } from 'perf_hooks'; // ✅ ใช้สำหรับจับเวลา
+import { performance } from 'perf_hooks';
 import * as dotenv from 'dotenv';
+import { getMongoVectorStore } from './vectorStore.js';
+import { getQdrantVectorStore } from './qdrantStore.js'; // นำเข้า Qdrant Vector Store
+import { getMemoryForUser } from './memory.js';
+import { QdrantClient } from "@qdrant/js-client-rest";
+import { Document } from "@langchain/core/documents";
+import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
+
 dotenv.config();
 
+// --- Configuration ---
 const LLM_CONTEXT_HISTORY_COUNT = 4;
-
-// const llm = new ChatOpenAI({
-//     model: 'gpt-4o-mini',
-//     temperature: 0.4,
-//     apiKey: process.env.OPENAI_API_KEY,
-// });
+const USE_QDRANT = true; // <<< ปรับเป็น true เพื่อใช้ Qdrant หรือ false เพื่อใช้ MongoDB
+const client = new QdrantClient({ url: 'http://ikb.exzycloud.com/qdrant', apiKey: '29bdfd0a1218d9729b7e93a6857f3755aee3a52018281657ec3871306da3e3fe' });
 
 const llm = new ChatGoogleGenerativeAI({
     model: 'gemini-2.5-flash',
     temperature: 0.4,
     apiKey: process.env.GOOGLE_API_KEY,
+});
+
+const embeddings = new GoogleGenerativeAIEmbeddings({
+    modelName: "gemini-embedding-001",
+    apiKey: process.env.GOOGLE_API_KEY,
+    outputDimensionality: 768,
 });
 
 const prompt = PromptTemplate.fromTemplate(`
@@ -46,17 +54,54 @@ Answer:
 `);
 
 export async function handleRAGChat({ userId, message }) {
-    console.log('Incoming message:', message);
-    console.log('From userId:', userId);
-
+    // ...
     const startAll = performance.now();
-
     try {
-        // ⏱ 1. โหลด Vector Store
+        // ⏱ 1. โหลด Vector Store (เลือกใช้ตามการตั้งค่า)
         const t0 = performance.now();
-        const vectorStore = await getMongoVectorStore();
-        const retriever = vectorStore.asRetriever({ k: 5 });
-        console.log(`getMongoVectorStore + retriever: ${(performance.now() - t0).toFixed(2)} ms`);
+        let vectorStore;
+
+        if (USE_QDRANT) {
+            console.log('Using Qdrant Vector Store...');
+            vectorStore = await getQdrantVectorStore();
+        } else {
+            console.log('Using MongoDB Vector Store...');
+            vectorStore = await getMongoVectorStore();
+        }
+
+        class DenseQdrantRetriever {
+            constructor({ client, collection, embeddings, k = 5 }) {
+                this.client = client;
+                this.collection = collection;
+                this.embeddings = embeddings;
+                this.k = k;
+            }
+            async getRelevantDocuments(query) {
+                const qvec = await this.embeddings.embedQuery(query);
+                const res = await this.client.query(this.collection, {
+                    query: qvec,
+                    using: "dense", // 👈 บอกชื่อเวกเตอร์ให้ชัด
+                    limit: this.k,
+                    with_payload: true,
+                });
+                return res.points.map((p) =>
+                    new Document({
+                        pageContent: p.payload.clean_content ?? "",
+                        metadata: p.payload,
+                    })
+                );
+            }
+        }
+
+        // ใช้งาน
+        const retriever = new DenseQdrantRetriever({
+            client,
+            collection: "ikb_content_gemini",
+            embeddings,
+            k: 5,
+        });
+        console.log(`Vector Store + retriever: ${(performance.now() - t0).toFixed(2)} ms`);
+
 
         // ⏱ 2. โหลด Memory
         const t1 = performance.now();
@@ -71,10 +116,26 @@ export async function handleRAGChat({ userId, message }) {
             {
                 context: async (input) => {
                     const tCtxStart = performance.now();
-                    const documents = await retriever.invoke(input.question);
+                    const documents = await retriever.getRelevantDocuments(input.question);
+                    console.log(`[DEBUG] Retrieved ${documents.length} documents for query: "${input.question}"`); // <--- เพิ่มบรรทัดนี้
+                    // console.log('\n--- Retrieved Documents from Qdrant ---');
+                    // if (documents && documents.length > 0) {
+                    //     documents.forEach((doc, index) => {
+                    //         console.log(`\nDocument ${index + 1}:`);
+                    //         console.log('Content:', doc.pageContent.slice(0, 200) + '...'); // แสดงแค่บางส่วน
+                    //         console.log('Metadata:', doc.metadata);
+                    //     });
+                    // } else {
+                    //     console.log('No relevant documents found for this query.');
+                    // }
+                    // console.log('---------------------------------------\n');
                     const contextString = (Array.isArray(documents) && documents.length > 0)
                         ? documents.map(doc => doc.pageContent).join('\n\n---\n\n')
                         : "No relevant documents found.";
+
+                    // console.log('\n--- Final Context to be sent to LLM ---');
+                    // console.log(contextString);
+                    // console.log('----------------------------------------\n');
                     console.log(`Retriever invoke: ${(performance.now() - tCtxStart).toFixed(2)} ms`);
                     return contextString;
                 },
@@ -96,6 +157,7 @@ export async function handleRAGChat({ userId, message }) {
 
         // ⏱ 5. เรียก LLM
         const t2 = performance.now();
+        console.log(`LLM invoke with question: "${message}"`);
         const response = await chainWithMemory.invoke(
             { question: message },
             { configurable: { sessionId: userId } }
@@ -116,3 +178,5 @@ export async function handleRAGChat({ userId, message }) {
         return "I apologize, but I encountered an internal error while processing your request. Please try again shortly.";
     }
 }
+
+

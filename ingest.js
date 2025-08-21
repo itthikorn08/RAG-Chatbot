@@ -6,15 +6,29 @@ import cron from "node-cron";
 import { PDFLoader } from "@langchain/community/document_loaders/fs/pdf";
 import mammoth from "mammoth";
 import XLSX from "xlsx";
-import { MongoClient } from "mongodb";
+
+// --- เปลี่ยนแปลงตรงนี้ ---
+import { QdrantClient } from "@qdrant/js-client-rest";
 import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
-import { MongoDBAtlasVectorSearch } from '@langchain/mongodb';
+import { QdrantVectorStore } from "@langchain/qdrant";
 import { CharacterTextSplitter } from "@langchain/textsplitters";
 
 dotenv.config();
 
-const uri = process.env.MONGODB_URI;
-const dbName = process.env.MONGODB_NAME;
+const COLLECTION_NAME = "gemini_documents";
+
+// --- เปลี่ยนการเชื่อมต่อจาก MongoDB เป็น Qdrant ---
+const qdrantClient = new QdrantClient({
+    url: process.env.QDRANT_URL,
+    apiKey: process.env.QDRANT_API_KEY,
+    checkCompatibility: false,
+});
+
+// --- Embedding Model ---
+const embeddings = new GoogleGenerativeAIEmbeddings({
+    model: "gemini-embedding-001",
+    apiKey: process.env.GOOGLE_API_KEY,
+});
 
 // --- Auth with OAuth2 ---
 const credentials = JSON.parse(fs.readFileSync("oauth-client.json"));
@@ -27,17 +41,6 @@ const oAuth2Client = new google.auth.OAuth2(
 );
 oAuth2Client.setCredentials(token);
 const drive = google.drive({ version: "v3", auth: oAuth2Client });
-
-// --- MongoDB ---
-const mongoClient = new MongoClient(uri);
-await mongoClient.connect();
-const collection = mongoClient.db(dbName).collection("gemini_documents");
-
-// --- Embedding Model ---
-const embeddings = new GoogleGenerativeAIEmbeddings({
-    model: "gemini-embedding-001",
-    apiKey: process.env.GOOGLE_API_KEY,
-});
 
 /**
  * โหลดไฟล์จาก Google Drive และส่ง buffer กลับมา
@@ -151,9 +154,24 @@ async function processFile(fileId, fileName, mimeType) {
     console.time(`processFile: ${fileName}`);
     console.log(`📄 Processing: ${fileName} (${mimeType})`);
 
-    // ลบข้อมูลเก่า
+    // --- เปลี่ยนการลบข้อมูลเก่าจาก MongoDB เป็น Qdrant ---
     console.time("deleteOldData");
-    await collection.deleteMany({ file_id: fileId });
+    try {
+        await qdrantClient.delete(COLLECTION_NAME, {
+            filter: {
+                must: [
+                    {
+                        key: "file_id",
+                        match: {
+                            value: fileId,
+                        },
+                    },
+                ],
+            },
+        });
+    } catch (e) {
+        console.warn(`⚠️ Could not delete old points for file ID: ${fileId}. It might not exist yet.`);
+    }
     console.timeEnd("deleteOldData");
 
     // โหลดไฟล์
@@ -176,11 +194,11 @@ async function processFile(fileId, fileName, mimeType) {
 
     // Vector Store
     console.time("addDocumentsToVectorStore");
-    const vectorStore = new MongoDBAtlasVectorSearch(embeddings, {
-        collection,
-        indexName: "vector_index_gemini",
-        textKey: "text",
-        embeddingKey: "embedding",
+    // --- เปลี่ยนการสร้าง Vector Store จาก MongoDB เป็น Qdrant ---
+    const vectorStore = new QdrantVectorStore(embeddings, {
+        url: process.env.QDRANT_URL,
+        apiKey: process.env.QDRANT_API_KEY,
+        collectionName: COLLECTION_NAME,
     });
 
     await vectorStore.addDocuments(

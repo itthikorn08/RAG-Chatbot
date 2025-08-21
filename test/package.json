@@ -1,0 +1,7 @@
+{
+  "name": "qdrant-connector",
+  "type": "module",
+  "dependencies": {
+    "@qdrant/js-client-rest": "^1.15.1"
+  }
+}
