@@ -3,6 +3,7 @@
 import { MongoClient } from 'mongodb';
 import { MongoDBAtlasVectorSearch } from '@langchain/mongodb';
 import { GoogleGenerativeAIEmbeddings } from '@langchain/google-genai';
+import { Document } from '@langchain/core/documents';
 import * as dotenv from 'dotenv';
 dotenv.config();
 
@@ -32,6 +33,9 @@ export async function getMongoVectorStore() {
     }
   );
 
-  return vectorStore;
+  return vectorStore.asRetriever({
+    k: 5,
+    filter: {},
+  });
 }
 
