@@ -41,7 +41,7 @@ export class DenseQdrantRetriever {
 
 export async function getQdrantRetriever() {
     const client = new QdrantClient({
-        url: process.env.QDRANT_URL || 'http://ikb.exzycloud.com/qdrant',
+        url: process.env.QDRANT_URL,
         apiKey: process.env.QDRANT_API_KEY,
     });
 
